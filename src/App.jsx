@@ -45,12 +45,14 @@ function generatePuzzle(difficulty) {
   const board = Array.from({ length: 9 }, () => Array(9).fill(0));
   solve(board);
   const solution = board.map(r => [...r]);
-  const remove = difficulty === "easy" ? 35 : difficulty === "medium" ? 45 : 55;
+  const remove = difficulty === "easy" ? 42 : difficulty === "medium" ? 52 : 62;
   const puzzle = board.map(r => [...r]);
   let removed = 0;
-  while (removed < remove) {
-    const r = Math.floor(Math.random() * 9);
-    const c = Math.floor(Math.random() * 9);
+  const cells = shuffle([...Array(81).keys()]);
+  for (const idx of cells) {
+    if (removed >= remove) break;
+    const r = Math.floor(idx / 9);
+    const c = idx % 9;
     if (puzzle[r][c] !== 0) { puzzle[r][c] = 0; removed++; }
   }
   return { puzzle, solution };
@@ -73,8 +75,7 @@ function checkConflict(board, row, col, val) {
 }
 
 export default function Sudoku() {
-  const [difficulty, setDifficulty] = useState("medium");
-  const [puzzle, setPuzzle] = useState(null);
+  const [difficulty, setDifficulty] = useState("hard");
   const [solution, setSolution] = useState(null);
   const [board, setBoard] = useState(null);
   const [given, setGiven] = useState(null);
@@ -89,15 +90,10 @@ export default function Sudoku() {
 
   useEffect(() => {
     const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = FONT;
+    link.rel = "stylesheet"; link.href = FONT;
     document.head.appendChild(link);
-    // force full viewport usage
     document.documentElement.style.height = "100%";
-    document.body.style.height = "100%";
-    document.body.style.margin = "0";
-    document.body.style.background = "#0f0e0c";
-    document.body.style.overflow = "hidden";
+    document.body.style.cssText = "height:100%;margin:0;background:#0f0e0c;overflow:hidden;";
     return () => document.head.removeChild(link);
   }, []);
 
@@ -110,8 +106,9 @@ export default function Sudoku() {
   const startGame = useCallback((diff = difficulty) => {
     const { puzzle: p, solution: s } = generatePuzzle(diff);
     const g = p.map(r => r.map(v => v !== 0));
-    setPuzzle(p); setSolution(s);
-    setBoard(p.map(r => [...r])); setGiven(g);
+    setSolution(s);
+    setBoard(p.map(r => [...r]));
+    setGiven(g);
     setSelected(null); setNotes({}); setNoteMode(false);
     setMistakes(0); setWon(false); setTimer(0);
     setRunning(true); setHistory([]);
@@ -120,7 +117,6 @@ export default function Sudoku() {
   useEffect(() => { startGame(); }, []);
 
   const fmtTime = (s) => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
-
   const pushHistory = (b, n) => setHistory(h => [...h, { board: b.map(r=>[...r]), notes: JSON.parse(JSON.stringify(n)) }]);
 
   const handleInput = useCallback((num) => {
@@ -196,164 +192,140 @@ export default function Sudoku() {
 
   return (
     <div style={{
-      position: "fixed", inset: 0,
-      background: "#0f0e0c",
+      position: "fixed", inset: 0, background: "#0f0e0c",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "space-between",
       fontFamily: "'DM Mono', monospace",
-      padding: "env(safe-area-inset-top, 12px) 12px env(safe-area-inset-bottom, 12px)",
-      overflow: "hidden",
+      padding: "12px 10px 16px", overflow: "hidden",
     }}>
       <style>{`
-        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
         @keyframes shimmer { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
         @keyframes pop { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
       `}</style>
 
-      {/* HEADER */}
-      <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 8, flexShrink: 0 }}>
+      <div style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
         <div>
           <div style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: "clamp(1.4rem, 6vw, 2rem)",
-            fontWeight: 900,
-            background: "linear-gradient(135deg, #d4af37 0%, #f5e577 50%, #b8960c 100%)",
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-            backgroundSize: "200%", animation: "shimmer 4s linear infinite",
-            letterSpacing: "0.1em",
+            fontFamily:"'Playfair Display', serif", fontSize:"clamp(1.6rem,7vw,2.2rem)", fontWeight:900,
+            background:"linear-gradient(135deg,#d4af37 0%,#f5e577 50%,#b8960c 100%)",
+            WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
+            backgroundSize:"200%", animation:"shimmer 4s linear infinite", letterSpacing:"0.1em",
           }}>SUDOKU</div>
-          <div style={{ fontSize: "0.5rem", color: "rgba(212,175,55,0.4)", letterSpacing: "0.2em", textTransform: "uppercase" }}>sovereign edition</div>
+          <div style={{ fontSize:"0.5rem", color:"rgba(212,175,55,0.4)", letterSpacing:"0.2em", textTransform:"uppercase" }}>sovereign edition</div>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: "0.45rem", color: "rgba(255,255,255,0.3)", letterSpacing: "0.15em", textTransform: "uppercase" }}>TIME</div>
-            <div style={{ fontSize: "0.9rem", color: "#d4af37", fontWeight: 500 }}>{fmtTime(timer)}</div>
+        <div style={{ display:"flex", gap:12, alignItems:"center" }}>
+          <div style={{ textAlign:"center" }}>
+            <div style={{ fontSize:"0.5rem", color:"rgba(255,255,255,0.3)", letterSpacing:"0.15em", textTransform:"uppercase" }}>TIME</div>
+            <div style={{ fontSize:"1rem", color:"#d4af37", fontWeight:500 }}>{fmtTime(timer)}</div>
           </div>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: "0.45rem", color: "rgba(255,255,255,0.3)", letterSpacing: "0.15em", textTransform: "uppercase" }}>ERR</div>
-            <div style={{ fontSize: "0.9rem", color: mistakes > 2 ? "#e05c5c" : "#d4af37", fontWeight: 500 }}>{mistakes}</div>
+          <div style={{ textAlign:"center" }}>
+            <div style={{ fontSize:"0.5rem", color:"rgba(255,255,255,0.3)", letterSpacing:"0.15em", textTransform:"uppercase" }}>ERR</div>
+            <div style={{ fontSize:"1rem", color:mistakes>2?"#e05c5c":"#d4af37", fontWeight:500 }}>{mistakes}</div>
           </div>
         </div>
       </div>
 
-      {/* DIFFICULTY */}
-      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+      <div style={{ display:"flex", gap:6, flexShrink:0 }}>
         {["easy","medium","hard"].map(d => (
           <button key={d} onClick={() => { setDifficulty(d); startGame(d); }} style={{
-            background: difficulty === d ? "rgba(212,175,55,0.12)" : "transparent",
-            border: `1px solid ${difficulty === d ? "#d4af37" : "rgba(255,255,255,0.15)"}`,
-            color: difficulty === d ? "#d4af37" : "rgba(255,255,255,0.35)",
-            borderRadius: 4, padding: "4px 12px",
-            fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
-            cursor: "pointer", fontFamily: "'DM Mono', monospace",
+            background: difficulty===d ? "rgba(212,175,55,0.12)" : "transparent",
+            border: `1px solid ${difficulty===d ? "#d4af37" : "rgba(255,255,255,0.15)"}`,
+            color: difficulty===d ? "#d4af37" : "rgba(255,255,255,0.35)",
+            borderRadius:4, padding:"5px 14px", fontSize:"0.65rem",
+            letterSpacing:"0.1em", textTransform:"uppercase", cursor:"pointer", fontFamily:"'DM Mono',monospace",
           }}>{d}</button>
         ))}
       </div>
 
-      {/* WIN BANNER */}
       {won && (
         <div style={{
-          background: "rgba(212,175,55,0.12)", border: "1px solid rgba(212,175,55,0.4)",
-          borderRadius: 10, padding: "10px 16px", textAlign: "center",
-          animation: "pop 0.4s ease", flexShrink: 0,
+          background:"rgba(212,175,55,0.12)", border:"1px solid rgba(212,175,55,0.4)",
+          borderRadius:10, padding:"10px 20px", textAlign:"center",
+          animation:"pop 0.4s ease", flexShrink:0, width:"100%",
         }}>
-          <div style={{ fontFamily: "'Playfair Display', serif", color: "#d4af37", fontSize: "1.2rem", fontWeight: 700 }}>Puzzle Complete!</div>
-          <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.65rem", marginTop: 2 }}>{fmtTime(timer)} — {mistakes} mistake{mistakes!==1?"s":""}</div>
+          <div style={{ fontFamily:"'Playfair Display',serif", color:"#d4af37", fontSize:"1.3rem", fontWeight:700 }}>Puzzle Complete!</div>
+          <div style={{ color:"rgba(255,255,255,0.4)", fontSize:"0.7rem", marginTop:2 }}>{fmtTime(timer)} — {mistakes} mistake{mistakes!==1?"s":""}</div>
           <button onClick={() => startGame()} style={{
-            marginTop: 8, background: "#d4af37", color: "#0f0e0c", border: "none",
-            borderRadius: 6, padding: "6px 16px", fontSize: "0.7rem", fontWeight: 700,
-            cursor: "pointer", letterSpacing: "0.1em", fontFamily: "'DM Mono', monospace",
+            marginTop:8, background:"#d4af37", color:"#0f0e0c", border:"none",
+            borderRadius:6, padding:"7px 20px", fontSize:"0.75rem", fontWeight:700,
+            cursor:"pointer", fontFamily:"'DM Mono',monospace",
           }}>New Game</button>
         </div>
       )}
 
-      {/* BOARD */}
       <div style={{
-        width: "min(100vw, 100vh - 280px, 440px)",
-        aspectRatio: "1",
-        border: "2px solid #d4af37", borderRadius: 8, overflow: "hidden",
-        display: "grid", gridTemplateColumns: "repeat(9,1fr)", gridTemplateRows: "repeat(9,1fr)",
-        boxShadow: "0 0 30px rgba(212,175,55,0.15)",
-        flexShrink: 0,
+        width:"min(96vw, calc(100vh - 260px))", aspectRatio:"1",
+        border:"2px solid #d4af37", borderRadius:8, overflow:"hidden",
+        display:"grid", gridTemplateColumns:"repeat(9,1fr)", gridTemplateRows:"repeat(9,1fr)",
+        boxShadow:"0 0 30px rgba(212,175,55,0.15)", flexShrink:0,
       }}>
-        {board.map((row, r) =>
-          row.map((val, c) => {
-            const isGiven = given[r][c];
-            const isSelected = selRow===r && selCol===c;
-            const isSameNum = selVal && val === selVal && !isSelected;
-            const inSameGroup = selected && (selRow===r || selCol===c ||
-              (Math.floor(selRow/3)===Math.floor(r/3) && Math.floor(selCol/3)===Math.floor(c/3)));
-            const wrong = val && !isGiven && solution[r][c] !== val;
-            const conflict = val && checkConflict(board, r, c, val);
-            const cellNotes = notes[`${r}-${c}`];
-
-            let bg = "transparent";
-            if (isSelected) bg = "rgba(212,175,55,0.25)";
-            else if (isSameNum) bg = "rgba(212,175,55,0.13)";
-            else if (inSameGroup) bg = "rgba(255,255,255,0.04)";
-
-            return (
-              <button key={`${r}-${c}`} onClick={() => setSelected([r,c])} style={{
-                display: "flex", alignItems: "center", justifyContent: "center",
-                background: bg, cursor: "pointer",
-                borderRight: (c+1)%3===0 && c!==8 ? "2px solid #d4af37" : "1px solid rgba(255,255,255,0.08)",
-                borderBottom: (r+1)%3===0 && r!==8 ? "2px solid #d4af37" : "1px solid rgba(255,255,255,0.08)",
-                borderLeft: c%3===0 && c!==0 ? "2px solid #d4af37" : "1px solid rgba(255,255,255,0.08)",
-                borderTop: r%3===0 && r!==0 ? "2px solid #d4af37" : "1px solid rgba(255,255,255,0.08)",
-                color: wrong || conflict ? "#e05c5c" : isGiven ? "#f5f0e8" : "#d4af37",
-                fontFamily: "'Playfair Display', serif",
-                fontSize: "clamp(0.75rem, 3vw, 1.2rem)",
-                fontWeight: isGiven ? 700 : 400,
-                outline: isSelected ? "2px solid #d4af37" : "none",
-                outlineOffset: -2, padding: 0,
-              }}>
-                {val ? val : cellNotes && cellNotes.size > 0
-                  ? <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gridTemplateRows:"repeat(3,1fr)", width:"100%", height:"100%", padding:1 }}>
-                      {[1,2,3,4,5,6,7,8,9].map(n => (
-                        <span key={n} style={{ display:"flex", alignItems:"center", justifyContent:"center", fontSize:"clamp(0.3rem,1.2vw,0.45rem)", color:"rgba(212,175,55,0.7)", opacity: cellNotes.has(n)?1:0 }}>{n}</span>
-                      ))}
-                    </div>
-                  : null}
-              </button>
-            );
-          })
-        )}
+        {board.map((row, r) => row.map((val, c) => {
+          const isGiven = given[r][c];
+          const isSelected = selRow===r && selCol===c;
+          const isSameNum = selVal && val===selVal && !isSelected;
+          const inSameGroup = selected && (selRow===r || selCol===c ||
+            (Math.floor(selRow/3)===Math.floor(r/3) && Math.floor(selCol/3)===Math.floor(c/3)));
+          const wrong = val && !isGiven && solution[r][c]!==val;
+          const conflict = val && checkConflict(board, r, c, val);
+          const cellNotes = notes[`${r}-${c}`];
+          let bg = "transparent";
+          if (isSelected) bg = "rgba(212,175,55,0.25)";
+          else if (isSameNum) bg = "rgba(212,175,55,0.13)";
+          else if (inSameGroup) bg = "rgba(255,255,255,0.04)";
+          return (
+            <button key={`${r}-${c}`} onClick={() => setSelected([r,c])} style={{
+              display:"flex", alignItems:"center", justifyContent:"center",
+              background:bg, cursor:"pointer",
+              borderRight: (c+1)%3===0&&c!==8 ? "2px solid #d4af37" : "1px solid rgba(255,255,255,0.1)",
+              borderBottom: (r+1)%3===0&&r!==8 ? "2px solid #d4af37" : "1px solid rgba(255,255,255,0.1)",
+              borderLeft: c%3===0&&c!==0 ? "2px solid #d4af37" : "1px solid rgba(255,255,255,0.1)",
+              borderTop: r%3===0&&r!==0 ? "2px solid #d4af37" : "1px solid rgba(255,255,255,0.1)",
+              color: wrong||conflict ? "#e05c5c" : isGiven ? "#f5f0e8" : "#d4af37",
+              fontFamily:"'Playfair Display',serif",
+              fontSize:"clamp(1.4rem,6vw,2rem)",
+              fontWeight: isGiven ? 700 : 400,
+              outline: isSelected ? "2px solid #d4af37" : "none",
+              outlineOffset:-2, padding:0,
+            }}>
+              {val ? val : cellNotes && cellNotes.size > 0
+                ? <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gridTemplateRows:"repeat(3,1fr)", width:"100%", height:"100%", padding:1 }}>
+                    {[1,2,3,4,5,6,7,8,9].map(n => (
+                      <span key={n} style={{ display:"flex", alignItems:"center", justifyContent:"center", fontSize:"clamp(0.3rem,1.3vw,0.45rem)", color:"rgba(212,175,55,0.7)", opacity:cellNotes.has(n)?1:0 }}>{n}</span>
+                    ))}
+                  </div>
+                : null}
+            </button>
+          );
+        }))}
       </div>
 
-      {/* ACTION BUTTONS */}
-      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+      <div style={{ display:"flex", gap:8, flexShrink:0 }}>
         {[
-          { label: "↩ Undo", fn: handleUndo },
-          { label: "⌫ Erase", fn: handleErase },
-          { label: noteMode ? "✏ ON" : "✏ Notes", fn: () => setNoteMode(m=>!m), active: noteMode },
-          { label: "↺ New", fn: () => startGame() },
+          { label:"↩ Undo", fn:handleUndo },
+          { label:"⌫ Erase", fn:handleErase },
+          { label:noteMode?"✏ ON":"✏ Notes", fn:()=>setNoteMode(m=>!m), active:noteMode },
+          { label:"↺ New", fn:()=>startGame() },
         ].map(({ label, fn, active }) => (
           <button key={label} onClick={fn} style={{
             background: active ? "rgba(212,175,55,0.1)" : "transparent",
             border: `1px solid ${active ? "#d4af37" : "rgba(255,255,255,0.15)"}`,
             color: active ? "#d4af37" : "rgba(255,255,255,0.45)",
-            borderRadius: 6, padding: "6px 10px",
-            fontSize: "clamp(0.55rem, 2.5vw, 0.7rem)",
-            cursor: "pointer", fontFamily: "'DM Mono', monospace",
-            letterSpacing: "0.03em",
+            borderRadius:6, padding:"7px 12px",
+            fontSize:"clamp(0.6rem,2.8vw,0.75rem)",
+            cursor:"pointer", fontFamily:"'DM Mono',monospace",
           }}>{label}</button>
         ))}
       </div>
 
-      {/* NUMBER PAD */}
-      <div style={{
-        display: "grid", gridTemplateColumns: "repeat(9,1fr)",
-        gap: 5, width: "100%", flexShrink: 0, paddingBottom: 4,
-      }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(9,1fr)", gap:5, width:"100%", flexShrink:0 }}>
         {[1,2,3,4,5,6,7,8,9].map(n => (
           <button key={n} onClick={() => handleInput(n)} style={{
-            aspectRatio: "1",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 6, color: "#f5f0e8",
-            fontFamily: "'Playfair Display', serif",
-            fontSize: "clamp(0.9rem, 4vw, 1.2rem)",
-            fontWeight: 700, cursor: "pointer",
+            aspectRatio:"1", background:"rgba(255,255,255,0.05)",
+            border:"1px solid rgba(255,255,255,0.12)", borderRadius:6, color:"#f5f0e8",
+            fontFamily:"'Playfair Display',serif",
+            fontSize:"clamp(1.6rem,7vw,2.4rem)",
+            fontWeight:700, cursor:"pointer",
           }}>{n}</button>
         ))}
       </div>
