@@ -103,9 +103,50 @@ function fmtClock(s) {
   return `0:${String(Math.max(0, s)).padStart(2, "0")}`;
 }
 
+function pickMattVoice() {
+  if (typeof window === "undefined" || !window.speechSynthesis) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return null;
+  const en = voices.filter(v => /^en/i.test(v.lang));
+  const male = en.find(v => /male|daniel|fred|alex|aaron|matthew|google uk english male/i.test(v.name));
+  return male || en[0] || voices[0];
+}
+
+function speakMatt(text, muted) {
+  if (muted || typeof window === "undefined" || !window.speechSynthesis) return;
+  try {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    const v = pickMattVoice();
+    if (v) u.voice = v;
+    u.rate = 0.95;
+    u.pitch = 0.95;
+    u.volume = 1;
+    window.speechSynthesis.speak(u);
+  } catch {}
+}
+
 function MattAd({ onSkip, onClose }) {
   const [elapsed, setElapsed] = useState(0);
   const [msgIdx, setMsgIdx] = useState(() => Math.floor(Math.random() * MATT_MESSAGES.length));
+  const [muted, setMuted] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    if (window.speechSynthesis.getVoices().length === 0) {
+      const onVoices = () => speakMatt(MATT_MESSAGES[msgIdx], muted);
+      window.speechSynthesis.addEventListener("voiceschanged", onVoices, { once: true });
+      return () => window.speechSynthesis.removeEventListener("voiceschanged", onVoices);
+    }
+  }, []);
+
+  useEffect(() => {
+    speakMatt(MATT_MESSAGES[msgIdx], muted);
+  }, [msgIdx, muted]);
+
+  useEffect(() => () => {
+    if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
+  }, []);
 
   useEffect(() => {
     if (elapsed >= AD_DURATION) return;
@@ -187,7 +228,12 @@ function MattAd({ onSkip, onClose }) {
                 {fmtClock(elapsed)} / {fmtClock(AD_DURATION)}
               </span>
             </div>
-            <span style={{ color:"#fff", fontSize:"0.85rem" }}>🔊</span>
+            <button onClick={() => setMuted(m => !m)} style={{
+              background:"transparent", border:"none", color:"#fff", fontSize:"0.95rem",
+              cursor:"pointer", padding:0, lineHeight:1,
+            }} aria-label={muted ? "Unmute" : "Mute"}>
+              {muted ? "🔇" : "🔊"}
+            </button>
           </div>
         </div>
       </div>
