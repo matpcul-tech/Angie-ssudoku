@@ -11,17 +11,17 @@ const INK_FAINT = "rgba(0,0,0,0.08)";
 const PAPER = "#ffffff";
 const RED = "#c0392b";
 
-const ANGIE_MESSAGES = [
-  "Angie loves you more than the sun loves the sky.",
-  "Every number in this puzzle is just Angie thinking about you.",
-  "Angie says you're the smartest, kindest, most handsome man alive.",
-  "Angie wrote your name in the margins of every notebook she owns.",
-  "Angie would solve a million sudokus just to sit next to you.",
-  "Angie picked you. Out of everyone. On purpose. Every single day.",
-  "Angie misses you when you're in the next room.",
-  "Angie thinks your laugh is the best sound in the world.",
-  "Angie loves the way you concentrate — like right now.",
-  "Angie's favorite puzzle is figuring out new ways to love you.",
+const MATT_MESSAGES = [
+  "Matt loves you more than the sun loves the sky.",
+  "Every number in this puzzle is just Matt thinking about you.",
+  "Matt says you're the smartest, kindest, most beautiful person alive.",
+  "Matt wrote your name in the margins of every notebook he owns.",
+  "Matt would solve a million sudokus just to sit next to you.",
+  "Matt picked you. Out of everyone. On purpose. Every single day.",
+  "Matt misses you when you're in the next room.",
+  "Matt thinks your laugh is the best sound in the world.",
+  "Matt loves the way you concentrate — like right now.",
+  "Matt's favorite puzzle is figuring out new ways to love you.",
 ];
 
 function isValid(board, row, col, num) {
@@ -96,75 +96,122 @@ function checkConflict(board, row, col, val) {
   return false;
 }
 
-const AD_DURATION = 6;
+const AD_DURATION = 15;
+const MSG_INTERVAL = 3500;
 
-function AngieAd({ onSkip, onClose }) {
-  const [remaining, setRemaining] = useState(AD_DURATION);
-  const [msgIdx, setMsgIdx] = useState(() => Math.floor(Math.random() * ANGIE_MESSAGES.length));
+function fmtClock(s) {
+  return `0:${String(Math.max(0, s)).padStart(2, "0")}`;
+}
+
+function MattAd({ onSkip, onClose }) {
+  const [elapsed, setElapsed] = useState(0);
+  const [msgIdx, setMsgIdx] = useState(() => Math.floor(Math.random() * MATT_MESSAGES.length));
 
   useEffect(() => {
-    if (remaining <= 0) return;
-    const t = setTimeout(() => setRemaining(r => r - 1), 1000);
+    if (elapsed >= AD_DURATION) return;
+    const t = setTimeout(() => setElapsed(e => e + 1), 1000);
     return () => clearTimeout(t);
-  }, [remaining]);
+  }, [elapsed]);
 
   useEffect(() => {
-    const t = setInterval(() => setMsgIdx(i => (i + 1) % ANGIE_MESSAGES.length), 2000);
+    const t = setInterval(() => setMsgIdx(i => (i + 1) % MATT_MESSAGES.length), MSG_INTERVAL);
     return () => clearInterval(t);
   }, []);
 
+  const remaining = Math.max(0, AD_DURATION - elapsed);
   const done = remaining <= 0;
+  const progress = (elapsed / AD_DURATION) * 100;
 
   return (
     <div style={{
-      position:"fixed", inset:0, background:"rgba(255,255,255,0.96)",
+      position:"fixed", inset:0, background:"rgba(0,0,0,0.78)",
       zIndex:50, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-      padding:24, animation:"fadeIn 0.25s ease",
+      padding:20, animation:"fadeIn 0.25s ease",
     }}>
-      <div style={{ fontSize:"0.55rem", color:INK_SOFT, letterSpacing:"0.25em", textTransform:"uppercase", marginBottom:10 }}>
-        Sponsored — Angie Inc.
+      <div style={{ fontSize:"0.55rem", color:"rgba(255,255,255,0.7)", letterSpacing:"0.25em", textTransform:"uppercase", marginBottom:10 }}>
+        Sponsored Video — Matt Inc.
       </div>
+
       <div style={{
-        maxWidth:480, padding:"28px 24px", borderRadius:14,
-        border:`1px solid ${GOLD}`, background:"#fffdf6",
-        boxShadow:"0 10px 40px rgba(184,134,11,0.18)",
-        textAlign:"center",
+        position:"relative", width:"min(92vw, 560px)", aspectRatio:"16/9",
+        borderRadius:12, overflow:"hidden",
+        background:"linear-gradient(135deg,#1a0f2e 0%,#3b1e4d 50%,#7a2d5a 100%)",
+        backgroundSize:"200% 200%", animation:"videoPan 8s ease-in-out infinite alternate",
+        boxShadow:"0 20px 60px rgba(0,0,0,0.5)",
       }}>
-        <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"1.4rem", color:GOLD, fontWeight:700, marginBottom:14 }}>
-          A word from Angie
-        </div>
-        <div key={msgIdx} style={{
-          fontFamily:"'Playfair Display',serif", fontSize:"1.15rem", color:INK,
-          lineHeight:1.4, minHeight:"3.2em", display:"flex", alignItems:"center", justifyContent:"center",
-          animation:"fadeIn 0.6s ease",
+        <div style={{
+          position:"absolute", inset:0, background:"radial-gradient(circle at 30% 30%, rgba(255,200,140,0.25), transparent 60%), radial-gradient(circle at 70% 70%, rgba(255,120,180,0.22), transparent 60%)",
+          animation:"videoGlow 5s ease-in-out infinite alternate",
+        }} />
+
+        <div style={{
+          position:"absolute", top:10, left:12, display:"flex", alignItems:"center", gap:6,
+          padding:"4px 8px", background:"rgba(0,0,0,0.45)", borderRadius:4,
         }}>
-          “{ANGIE_MESSAGES[msgIdx]}”
+          <span style={{ width:6, height:6, borderRadius:"50%", background:"#e0383e", animation:"livePulse 1.5s ease-in-out infinite" }} />
+          <span style={{ fontSize:"0.55rem", color:"#fff", letterSpacing:"0.15em", fontFamily:"'DM Mono',monospace" }}>AD</span>
         </div>
-        <div style={{ marginTop:18, height:4, background:INK_FAINT, borderRadius:2, overflow:"hidden" }}>
-          <div style={{
-            height:"100%", width:`${((AD_DURATION - remaining) / AD_DURATION) * 100}%`,
-            background:GOLD, transition:"width 1s linear",
-          }} />
+
+        <div style={{
+          position:"absolute", inset:0, display:"flex", flexDirection:"column",
+          alignItems:"center", justifyContent:"center", padding:"30px 28px", textAlign:"center",
+        }}>
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"clamp(0.7rem,2.5vw,0.95rem)", color:"rgba(255,220,170,0.85)", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:14 }}>
+            A word from Matt
+          </div>
+          <div key={msgIdx} style={{
+            fontFamily:"'Playfair Display',serif", fontSize:"clamp(1rem,3.2vw,1.5rem)", fontWeight:700,
+            color:"#fff8e8", lineHeight:1.35, maxWidth:"90%",
+            textShadow:"0 2px 12px rgba(0,0,0,0.45)",
+            animation:"fadeIn 0.7s ease",
+          }}>
+            “{MATT_MESSAGES[msgIdx]}”
+          </div>
         </div>
-        <div style={{ marginTop:18, display:"flex", gap:10, justifyContent:"center" }}>
-          <button onClick={onClose} style={{
-            background:"transparent", border:`1px solid ${INK_FAINT}`,
-            color:INK_SOFT, borderRadius:6, padding:"8px 16px",
-            fontSize:"0.7rem", letterSpacing:"0.1em", textTransform:"uppercase",
-            cursor:"pointer", fontFamily:"'DM Mono',monospace",
-          }}>Cancel</button>
-          <button
-            onClick={done ? onSkip : undefined}
-            disabled={!done}
-            style={{
-              background: done ? GOLD : "rgba(184,134,11,0.35)",
-              border:"none", color:PAPER, borderRadius:6, padding:"8px 18px",
-              fontSize:"0.75rem", fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase",
-              cursor: done ? "pointer" : "not-allowed", fontFamily:"'DM Mono',monospace",
-            }}>
-            {done ? "Claim hint" : `Hint in ${remaining}s`}
-          </button>
+
+        <div style={{
+          position:"absolute", left:0, right:0, bottom:0, padding:"8px 12px",
+          background:"linear-gradient(to top, rgba(0,0,0,0.7), transparent)",
+          display:"flex", flexDirection:"column", gap:6,
+        }}>
+          <div style={{ height:3, background:"rgba(255,255,255,0.25)", borderRadius:2, overflow:"hidden" }}>
+            <div style={{
+              height:"100%", width:`${progress}%`, background:"#e0383e",
+              transition:"width 1s linear",
+            }} />
+          </div>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <span style={{ color:"#fff", fontSize:"0.85rem" }}>▶</span>
+              <span style={{ color:"#fff", fontSize:"0.6rem", fontFamily:"'DM Mono',monospace", letterSpacing:"0.05em" }}>
+                {fmtClock(elapsed)} / {fmtClock(AD_DURATION)}
+              </span>
+            </div>
+            <span style={{ color:"#fff", fontSize:"0.85rem" }}>🔊</span>
+          </div>
         </div>
+      </div>
+
+      <div style={{ marginTop:18, display:"flex", gap:10, justifyContent:"center" }}>
+        <button onClick={onClose} style={{
+          background:"transparent", border:"1px solid rgba(255,255,255,0.3)",
+          color:"rgba(255,255,255,0.75)", borderRadius:6, padding:"9px 18px",
+          fontSize:"0.7rem", letterSpacing:"0.1em", textTransform:"uppercase",
+          cursor:"pointer", fontFamily:"'DM Mono',monospace",
+        }}>Cancel</button>
+        <button
+          onClick={done ? onSkip : undefined}
+          disabled={!done}
+          style={{
+            background: done ? GOLD : "rgba(184,134,11,0.4)",
+            border:"none", color:PAPER, borderRadius:6, padding:"9px 22px",
+            fontSize:"0.8rem", fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase",
+            cursor: done ? "pointer" : "not-allowed", fontFamily:"'DM Mono',monospace",
+            display:"flex", alignItems:"center", gap:8,
+          }}>
+          {done ? "Skip ad → claim hint" : `Skip in ${remaining}s`}
+          {done && <span style={{ fontSize:"1rem" }}>⏭</span>}
+        </button>
       </div>
     </div>
   );
@@ -353,6 +400,9 @@ export default function Sudoku() {
         @keyframes shimmer { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
         @keyframes pop { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        @keyframes videoPan { 0%{background-position:0% 0%} 100%{background-position:100% 100%} }
+        @keyframes videoGlow { 0%{opacity:0.7} 100%{opacity:1} }
+        @keyframes livePulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
       `}</style>
 
       <div style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
@@ -434,8 +484,8 @@ export default function Sudoku() {
               borderTop: r%3===0&&r!==0 ? `2px solid ${GOLD}` : `1px solid ${INK_FAINT}`,
               color: wrong||conflict ? RED : isGiven ? INK : GOLD,
               fontFamily:"'Playfair Display',serif",
-              fontSize:"clamp(1.4rem,6vw,2rem)",
-              fontWeight: isGiven ? 700 : 400,
+              fontSize:"clamp(1.9rem,8vw,2.7rem)",
+              fontWeight: isGiven ? 900 : 700,
               outline: isSelected ? `2px solid ${GOLD}` : "none",
               outlineOffset:-2, padding:0,
             }}>
@@ -476,13 +526,13 @@ export default function Sudoku() {
             aspectRatio:"1", background:"#faf7ee",
             border:`1px solid ${INK_FAINT}`, borderRadius:6, color:INK,
             fontFamily:"'Playfair Display',serif",
-            fontSize:"clamp(1.6rem,7vw,2.4rem)",
-            fontWeight:700, cursor:"pointer",
+            fontSize:"clamp(2rem,9vw,3rem)",
+            fontWeight:900, cursor:"pointer",
           }}>{n}</button>
         ))}
       </div>
 
-      {showAd && <AngieAd onSkip={grantHint} onClose={cancelHint} />}
+      {showAd && <MattAd onSkip={grantHint} onClose={cancelHint} />}
     </div>
   );
 }
