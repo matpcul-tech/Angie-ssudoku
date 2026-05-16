@@ -1,6 +1,28 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 const FONT = "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&display=swap";
+
+const GOLD = "#b8860b";
+const GOLD_SOFT = "rgba(184,134,11,0.18)";
+const GOLD_GHOST = "rgba(184,134,11,0.10)";
+const INK = "#1a1a1a";
+const INK_SOFT = "rgba(0,0,0,0.45)";
+const INK_FAINT = "rgba(0,0,0,0.08)";
+const PAPER = "#ffffff";
+const RED = "#c0392b";
+
+const ANGIE_MESSAGES = [
+  "Angie loves you more than the sun loves the sky.",
+  "Every number in this puzzle is just Angie thinking about you.",
+  "Angie says you're the smartest, kindest, most handsome man alive.",
+  "Angie wrote your name in the margins of every notebook she owns.",
+  "Angie would solve a million sudokus just to sit next to you.",
+  "Angie picked you. Out of everyone. On purpose. Every single day.",
+  "Angie misses you when you're in the next room.",
+  "Angie thinks your laugh is the best sound in the world.",
+  "Angie loves the way you concentrate — like right now.",
+  "Angie's favorite puzzle is figuring out new ways to love you.",
+];
 
 function isValid(board, row, col, num) {
   for (let i = 0; i < 9; i++) {
@@ -74,6 +96,80 @@ function checkConflict(board, row, col, val) {
   return false;
 }
 
+const AD_DURATION = 6;
+
+function AngieAd({ onSkip, onClose }) {
+  const [remaining, setRemaining] = useState(AD_DURATION);
+  const [msgIdx, setMsgIdx] = useState(() => Math.floor(Math.random() * ANGIE_MESSAGES.length));
+
+  useEffect(() => {
+    if (remaining <= 0) return;
+    const t = setTimeout(() => setRemaining(r => r - 1), 1000);
+    return () => clearTimeout(t);
+  }, [remaining]);
+
+  useEffect(() => {
+    const t = setInterval(() => setMsgIdx(i => (i + 1) % ANGIE_MESSAGES.length), 2000);
+    return () => clearInterval(t);
+  }, []);
+
+  const done = remaining <= 0;
+
+  return (
+    <div style={{
+      position:"fixed", inset:0, background:"rgba(255,255,255,0.96)",
+      zIndex:50, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+      padding:24, animation:"fadeIn 0.25s ease",
+    }}>
+      <div style={{ fontSize:"0.55rem", color:INK_SOFT, letterSpacing:"0.25em", textTransform:"uppercase", marginBottom:10 }}>
+        Sponsored — Angie Inc.
+      </div>
+      <div style={{
+        maxWidth:480, padding:"28px 24px", borderRadius:14,
+        border:`1px solid ${GOLD}`, background:"#fffdf6",
+        boxShadow:"0 10px 40px rgba(184,134,11,0.18)",
+        textAlign:"center",
+      }}>
+        <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"1.4rem", color:GOLD, fontWeight:700, marginBottom:14 }}>
+          A word from Angie
+        </div>
+        <div key={msgIdx} style={{
+          fontFamily:"'Playfair Display',serif", fontSize:"1.15rem", color:INK,
+          lineHeight:1.4, minHeight:"3.2em", display:"flex", alignItems:"center", justifyContent:"center",
+          animation:"fadeIn 0.6s ease",
+        }}>
+          “{ANGIE_MESSAGES[msgIdx]}”
+        </div>
+        <div style={{ marginTop:18, height:4, background:INK_FAINT, borderRadius:2, overflow:"hidden" }}>
+          <div style={{
+            height:"100%", width:`${((AD_DURATION - remaining) / AD_DURATION) * 100}%`,
+            background:GOLD, transition:"width 1s linear",
+          }} />
+        </div>
+        <div style={{ marginTop:18, display:"flex", gap:10, justifyContent:"center" }}>
+          <button onClick={onClose} style={{
+            background:"transparent", border:`1px solid ${INK_FAINT}`,
+            color:INK_SOFT, borderRadius:6, padding:"8px 16px",
+            fontSize:"0.7rem", letterSpacing:"0.1em", textTransform:"uppercase",
+            cursor:"pointer", fontFamily:"'DM Mono',monospace",
+          }}>Cancel</button>
+          <button
+            onClick={done ? onSkip : undefined}
+            disabled={!done}
+            style={{
+              background: done ? GOLD : "rgba(184,134,11,0.35)",
+              border:"none", color:PAPER, borderRadius:6, padding:"8px 18px",
+              fontSize:"0.75rem", fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase",
+              cursor: done ? "pointer" : "not-allowed", fontFamily:"'DM Mono',monospace",
+            }}>
+            {done ? "Claim hint" : `Hint in ${remaining}s`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Sudoku() {
   const [difficulty, setDifficulty] = useState("hard");
   const [solution, setSolution] = useState(null);
@@ -87,13 +183,15 @@ export default function Sudoku() {
   const [timer, setTimer] = useState(0);
   const [running, setRunning] = useState(false);
   const [history, setHistory] = useState([]);
+  const [showAd, setShowAd] = useState(false);
+  const pendingHintCell = useRef(null);
 
   useEffect(() => {
     const link = document.createElement("link");
     link.rel = "stylesheet"; link.href = FONT;
     document.head.appendChild(link);
     document.documentElement.style.height = "100%";
-    document.body.style.cssText = "height:100%;margin:0;background:#0f0e0c;overflow:hidden;";
+    document.body.style.cssText = "height:100%;margin:0;background:#ffffff;overflow:hidden;";
     return () => document.head.removeChild(link);
   }, []);
 
@@ -112,6 +210,8 @@ export default function Sudoku() {
     setSelected(null); setNotes({}); setNoteMode(false);
     setMistakes(0); setWon(false); setTimer(0);
     setRunning(true); setHistory([]);
+    setShowAd(false);
+    pendingHintCell.current = null;
   }, [difficulty]);
 
   useEffect(() => { startGame(); }, []);
@@ -166,8 +266,58 @@ export default function Sudoku() {
     setHistory(h => h.slice(0, -1));
   }, [history]);
 
+  const pickHintCell = useCallback(() => {
+    if (selected) {
+      const [r, c] = selected;
+      if (!given[r][c] && board[r][c] !== solution[r][c]) return [r, c];
+    }
+    const empties = [];
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        if (!given[r][c] && board[r][c] !== solution[r][c]) empties.push([r, c]);
+      }
+    }
+    if (!empties.length) return null;
+    return empties[Math.floor(Math.random() * empties.length)];
+  }, [selected, given, board, solution]);
+
+  const requestHint = useCallback(() => {
+    if (won || !board) return;
+    const cell = pickHintCell();
+    if (!cell) return;
+    pendingHintCell.current = cell;
+    setShowAd(true);
+  }, [won, board, pickHintCell]);
+
+  const grantHint = useCallback(() => {
+    const cell = pendingHintCell.current;
+    setShowAd(false);
+    pendingHintCell.current = null;
+    if (!cell) return;
+    const [r, c] = cell;
+    pushHistory(board, notes);
+    const newBoard = board.map(row => [...row]);
+    newBoard[r][c] = solution[r][c];
+    const newGiven = given.map(row => [...row]);
+    newGiven[r][c] = true;
+    const newNotes = { ...notes };
+    delete newNotes[`${r}-${c}`];
+    setBoard(newBoard);
+    setGiven(newGiven);
+    setNotes(newNotes);
+    setSelected([r, c]);
+    const complete = newBoard.every((row, ri) => row.every((v, ci) => v === solution[ri][ci]));
+    if (complete) { setWon(true); setRunning(false); }
+  }, [board, notes, solution, given]);
+
+  const cancelHint = useCallback(() => {
+    pendingHintCell.current = null;
+    setShowAd(false);
+  }, []);
+
   useEffect(() => {
     const onKey = (e) => {
+      if (showAd) return;
       const n = parseInt(e.key);
       if (n >= 1 && n <= 9) handleInput(n);
       if (e.key === "Backspace" || e.key === "Delete") handleErase();
@@ -182,7 +332,7 @@ export default function Sudoku() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [handleInput, handleErase, handleUndo, selected]);
+  }, [handleInput, handleErase, handleUndo, selected, showAd]);
 
   if (!board) return null;
 
@@ -192,7 +342,7 @@ export default function Sudoku() {
 
   return (
     <div style={{
-      position: "fixed", inset: 0, background: "#0f0e0c",
+      position: "fixed", inset: 0, background: PAPER,
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "space-between",
       fontFamily: "'DM Mono', monospace",
@@ -202,26 +352,27 @@ export default function Sudoku() {
         * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
         @keyframes shimmer { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
         @keyframes pop { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
       `}</style>
 
       <div style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
         <div>
           <div style={{
             fontFamily:"'Playfair Display', serif", fontSize:"clamp(1.6rem,7vw,2.2rem)", fontWeight:900,
-            background:"linear-gradient(135deg,#d4af37 0%,#f5e577 50%,#b8960c 100%)",
+            background:"linear-gradient(135deg,#8b6914 0%,#d4af37 50%,#8b6914 100%)",
             WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
             backgroundSize:"200%", animation:"shimmer 4s linear infinite", letterSpacing:"0.1em",
           }}>SUDOKU</div>
-          <div style={{ fontSize:"0.5rem", color:"rgba(212,175,55,0.4)", letterSpacing:"0.2em", textTransform:"uppercase" }}>sovereign edition</div>
+          <div style={{ fontSize:"0.5rem", color:"rgba(184,134,11,0.6)", letterSpacing:"0.2em", textTransform:"uppercase" }}>sovereign edition</div>
         </div>
         <div style={{ display:"flex", gap:12, alignItems:"center" }}>
           <div style={{ textAlign:"center" }}>
-            <div style={{ fontSize:"0.5rem", color:"rgba(255,255,255,0.3)", letterSpacing:"0.15em", textTransform:"uppercase" }}>TIME</div>
-            <div style={{ fontSize:"1rem", color:"#d4af37", fontWeight:500 }}>{fmtTime(timer)}</div>
+            <div style={{ fontSize:"0.5rem", color:INK_SOFT, letterSpacing:"0.15em", textTransform:"uppercase" }}>TIME</div>
+            <div style={{ fontSize:"1rem", color:GOLD, fontWeight:500 }}>{fmtTime(timer)}</div>
           </div>
           <div style={{ textAlign:"center" }}>
-            <div style={{ fontSize:"0.5rem", color:"rgba(255,255,255,0.3)", letterSpacing:"0.15em", textTransform:"uppercase" }}>ERR</div>
-            <div style={{ fontSize:"1rem", color:mistakes>2?"#e05c5c":"#d4af37", fontWeight:500 }}>{mistakes}</div>
+            <div style={{ fontSize:"0.5rem", color:INK_SOFT, letterSpacing:"0.15em", textTransform:"uppercase" }}>ERR</div>
+            <div style={{ fontSize:"1rem", color:mistakes>2?RED:GOLD, fontWeight:500 }}>{mistakes}</div>
           </div>
         </div>
       </div>
@@ -229,9 +380,9 @@ export default function Sudoku() {
       <div style={{ display:"flex", gap:6, flexShrink:0 }}>
         {["easy","medium","hard"].map(d => (
           <button key={d} onClick={() => { setDifficulty(d); startGame(d); }} style={{
-            background: difficulty===d ? "rgba(212,175,55,0.12)" : "transparent",
-            border: `1px solid ${difficulty===d ? "#d4af37" : "rgba(255,255,255,0.15)"}`,
-            color: difficulty===d ? "#d4af37" : "rgba(255,255,255,0.35)",
+            background: difficulty===d ? GOLD_GHOST : "transparent",
+            border: `1px solid ${difficulty===d ? GOLD : INK_FAINT}`,
+            color: difficulty===d ? GOLD : INK_SOFT,
             borderRadius:4, padding:"5px 14px", fontSize:"0.65rem",
             letterSpacing:"0.1em", textTransform:"uppercase", cursor:"pointer", fontFamily:"'DM Mono',monospace",
           }}>{d}</button>
@@ -240,14 +391,14 @@ export default function Sudoku() {
 
       {won && (
         <div style={{
-          background:"rgba(212,175,55,0.12)", border:"1px solid rgba(212,175,55,0.4)",
+          background:GOLD_GHOST, border:`1px solid ${GOLD}`,
           borderRadius:10, padding:"10px 20px", textAlign:"center",
           animation:"pop 0.4s ease", flexShrink:0, width:"100%",
         }}>
-          <div style={{ fontFamily:"'Playfair Display',serif", color:"#d4af37", fontSize:"1.3rem", fontWeight:700 }}>Puzzle Complete!</div>
-          <div style={{ color:"rgba(255,255,255,0.4)", fontSize:"0.7rem", marginTop:2 }}>{fmtTime(timer)} — {mistakes} mistake{mistakes!==1?"s":""}</div>
+          <div style={{ fontFamily:"'Playfair Display',serif", color:GOLD, fontSize:"1.3rem", fontWeight:700 }}>Puzzle Complete!</div>
+          <div style={{ color:INK_SOFT, fontSize:"0.7rem", marginTop:2 }}>{fmtTime(timer)} — {mistakes} mistake{mistakes!==1?"s":""}</div>
           <button onClick={() => startGame()} style={{
-            marginTop:8, background:"#d4af37", color:"#0f0e0c", border:"none",
+            marginTop:8, background:GOLD, color:PAPER, border:"none",
             borderRadius:6, padding:"7px 20px", fontSize:"0.75rem", fontWeight:700,
             cursor:"pointer", fontFamily:"'DM Mono',monospace",
           }}>New Game</button>
@@ -256,9 +407,9 @@ export default function Sudoku() {
 
       <div style={{
         width:"min(96vw, calc(100vh - 260px))", aspectRatio:"1",
-        border:"2px solid #d4af37", borderRadius:8, overflow:"hidden",
+        border:`2px solid ${GOLD}`, borderRadius:8, overflow:"hidden",
         display:"grid", gridTemplateColumns:"repeat(9,1fr)", gridTemplateRows:"repeat(9,1fr)",
-        boxShadow:"0 0 30px rgba(212,175,55,0.15)", flexShrink:0,
+        boxShadow:"0 0 30px rgba(184,134,11,0.12)", flexShrink:0, background:PAPER,
       }}>
         {board.map((row, r) => row.map((val, c) => {
           const isGiven = given[r][c];
@@ -269,29 +420,29 @@ export default function Sudoku() {
           const wrong = val && !isGiven && solution[r][c]!==val;
           const conflict = val && checkConflict(board, r, c, val);
           const cellNotes = notes[`${r}-${c}`];
-          let bg = "transparent";
-          if (isSelected) bg = "rgba(212,175,55,0.25)";
-          else if (isSameNum) bg = "rgba(212,175,55,0.13)";
-          else if (inSameGroup) bg = "rgba(255,255,255,0.04)";
+          let bg = PAPER;
+          if (isSelected) bg = GOLD_SOFT;
+          else if (isSameNum) bg = GOLD_GHOST;
+          else if (inSameGroup) bg = "rgba(0,0,0,0.035)";
           return (
             <button key={`${r}-${c}`} onClick={() => setSelected([r,c])} style={{
               display:"flex", alignItems:"center", justifyContent:"center",
               background:bg, cursor:"pointer",
-              borderRight: (c+1)%3===0&&c!==8 ? "2px solid #d4af37" : "1px solid rgba(255,255,255,0.1)",
-              borderBottom: (r+1)%3===0&&r!==8 ? "2px solid #d4af37" : "1px solid rgba(255,255,255,0.1)",
-              borderLeft: c%3===0&&c!==0 ? "2px solid #d4af37" : "1px solid rgba(255,255,255,0.1)",
-              borderTop: r%3===0&&r!==0 ? "2px solid #d4af37" : "1px solid rgba(255,255,255,0.1)",
-              color: wrong||conflict ? "#e05c5c" : isGiven ? "#f5f0e8" : "#d4af37",
+              borderRight: (c+1)%3===0&&c!==8 ? `2px solid ${GOLD}` : `1px solid ${INK_FAINT}`,
+              borderBottom: (r+1)%3===0&&r!==8 ? `2px solid ${GOLD}` : `1px solid ${INK_FAINT}`,
+              borderLeft: c%3===0&&c!==0 ? `2px solid ${GOLD}` : `1px solid ${INK_FAINT}`,
+              borderTop: r%3===0&&r!==0 ? `2px solid ${GOLD}` : `1px solid ${INK_FAINT}`,
+              color: wrong||conflict ? RED : isGiven ? INK : GOLD,
               fontFamily:"'Playfair Display',serif",
               fontSize:"clamp(1.4rem,6vw,2rem)",
               fontWeight: isGiven ? 700 : 400,
-              outline: isSelected ? "2px solid #d4af37" : "none",
+              outline: isSelected ? `2px solid ${GOLD}` : "none",
               outlineOffset:-2, padding:0,
             }}>
               {val ? val : cellNotes && cellNotes.size > 0
                 ? <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gridTemplateRows:"repeat(3,1fr)", width:"100%", height:"100%", padding:1 }}>
                     {[1,2,3,4,5,6,7,8,9].map(n => (
-                      <span key={n} style={{ display:"flex", alignItems:"center", justifyContent:"center", fontSize:"clamp(0.3rem,1.3vw,0.45rem)", color:"rgba(212,175,55,0.7)", opacity:cellNotes.has(n)?1:0 }}>{n}</span>
+                      <span key={n} style={{ display:"flex", alignItems:"center", justifyContent:"center", fontSize:"clamp(0.3rem,1.3vw,0.45rem)", color:"rgba(184,134,11,0.85)", opacity:cellNotes.has(n)?1:0 }}>{n}</span>
                     ))}
                   </div>
                 : null}
@@ -300,17 +451,18 @@ export default function Sudoku() {
         }))}
       </div>
 
-      <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+      <div style={{ display:"flex", gap:8, flexShrink:0, flexWrap:"wrap", justifyContent:"center" }}>
         {[
           { label:"↩ Undo", fn:handleUndo },
           { label:"⌫ Erase", fn:handleErase },
           { label:noteMode?"✏ ON":"✏ Notes", fn:()=>setNoteMode(m=>!m), active:noteMode },
+          { label:"💡 Hint", fn:requestHint },
           { label:"↺ New", fn:()=>startGame() },
         ].map(({ label, fn, active }) => (
           <button key={label} onClick={fn} style={{
-            background: active ? "rgba(212,175,55,0.1)" : "transparent",
-            border: `1px solid ${active ? "#d4af37" : "rgba(255,255,255,0.15)"}`,
-            color: active ? "#d4af37" : "rgba(255,255,255,0.45)",
+            background: active ? GOLD_GHOST : "transparent",
+            border: `1px solid ${active ? GOLD : INK_FAINT}`,
+            color: active ? GOLD : INK_SOFT,
             borderRadius:6, padding:"7px 12px",
             fontSize:"clamp(0.6rem,2.8vw,0.75rem)",
             cursor:"pointer", fontFamily:"'DM Mono',monospace",
@@ -321,14 +473,16 @@ export default function Sudoku() {
       <div style={{ display:"grid", gridTemplateColumns:"repeat(9,1fr)", gap:5, width:"100%", flexShrink:0 }}>
         {[1,2,3,4,5,6,7,8,9].map(n => (
           <button key={n} onClick={() => handleInput(n)} style={{
-            aspectRatio:"1", background:"rgba(255,255,255,0.05)",
-            border:"1px solid rgba(255,255,255,0.12)", borderRadius:6, color:"#f5f0e8",
+            aspectRatio:"1", background:"#faf7ee",
+            border:`1px solid ${INK_FAINT}`, borderRadius:6, color:INK,
             fontFamily:"'Playfair Display',serif",
             fontSize:"clamp(1.6rem,7vw,2.4rem)",
             fontWeight:700, cursor:"pointer",
           }}>{n}</button>
         ))}
       </div>
+
+      {showAd && <AngieAd onSkip={grantHint} onClose={cancelHint} />}
     </div>
   );
 }
